@@ -14,6 +14,7 @@ J2534 Passthru driver for ELM327 devices
 * Create folder C:\Elm327-J2534\
 * Copy files from Driver-folder to C:\Elm327-J2534\
 * Doubleclick Elm327-32bit-Windows.reg if you have 32 bit windows or Elm327-64bit-Windows.reg if you have 64 bit windows
+* If you want to use another folder, set FunctionLibrary= in registry file before importing it.
 
 # LICENSING
 This is opensource, free software and uses code from other projects. 

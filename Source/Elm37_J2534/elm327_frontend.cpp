@@ -304,6 +304,7 @@ EXTERN_DLL_EXPORT long J2534_API PassThruReadMsgs(unsigned long ChannelID, PASST
 	for (;;)
 	{
 		PASSTHRU_MSG Msg = elm327.ReceiveIsoTpMessage(Timeout);
+		//PASSTHRU_MSG Msg = elm327.ReceiveIsoTpMessage(1000);
 		if (Msg.DataSize == 0)
 		{
 			if (msgNum == 0)
@@ -365,7 +366,7 @@ EXTERN_DLL_EXPORT long J2534_API PassThruWriteMsgs(unsigned long ChannelID, PASS
 			cMsg.MsgId = elm327.ArrayToInt(pMsg[m].Data, 0);
 			cMsg.size = pMsg[m].DataSize - 4;
 			memcpy(cMsg.data, pMsg[m].Data + 4, 8);
-			elm327.elm327SendMsg(cMsg, 100);
+			elm327.elm327SendMsg(cMsg, Timeout);
 		}
 		else
 		{
@@ -655,7 +656,8 @@ EXTERN_DLL_EXPORT long J2534_API PassThruIoctl(unsigned long ChannelID, unsigned
 		case CLEAR_TX_BUFFER:
 			break;
 		case CLEAR_RX_BUFFER:
-			*(int*)pOutput = elm327.ClearBuffer();
+			//*(int*)pOutput = 
+				elm327.ClearBuffer();
 			break;
 		case CLEAR_PERIODIC_MSGS:
 			break;

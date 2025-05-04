@@ -358,7 +358,6 @@ EXTERN_DLL_EXPORT long J2534_API PassThruWriteMsgs(unsigned long ChannelID, PASS
 	dbug_printmsg(pMsg, _T("Msg"), pNumMsgs, true);
 	for (int m = 0;m < reqNumMsgs;m++)
 	{
-		UINT32 id = elm327.ArrayToInt(pMsg[m].Data,0);
 		if (channels[ChannelID].Protocol == CAN && pMsg->DataSize < 13) //Max size: 4 + 8 (id+data)
 		{
 			//Send raw CAN message
@@ -644,7 +643,6 @@ EXTERN_DLL_EXPORT long J2534_API PassThruIoctl(unsigned long ChannelID, unsigned
 		case READ_VBATT:
 			*(int*)pOutput = elm327.ReadVoltage() * 1000;
 			break;
-		// Do nothing for READ_VBATT input
 		case FIVE_BAUD_INIT:
 			//simResult = GetIOCTLvalue("FIVE_BAUD_INIT",pInput, pOutput, &retval);
 			dbug_printsbyte((SBYTE_ARRAY*)pInput, _T("Input"));

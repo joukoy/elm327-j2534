@@ -5,9 +5,10 @@ J2534 Passthru driver for ELM327 devices
 + Support CAN (ISO15765) and VPW (J1850) protocols
 + Support cheap Elm327 devices with minimal fatures
 + Support periodic messages (untested)
+# Limitations
 - ELM is slow
-- ELM support only one filter so it is fixed to 5E0, Mask 7F0
-- IOCTL settings not implemented (only read voltage)
+- ELM support only one filter so it is fixed to 5E0, Mask 7F0 for CAN
+- Most of IOCTL settings not implemented. Only READ_VBATT and CLEAR_RX_BUFFER
 - Need testing and possible fixing, use at your own risk
 
 # INSTALLATION

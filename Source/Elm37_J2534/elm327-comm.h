@@ -89,6 +89,8 @@ private:
 	void ParseMessage(byte* messageBytes, int messagelen, std::string* header, std::string* payload);
 	void Receive(int NumMessages, int timeout);
 	void EnqueuePassthruMsg(PASSTHRU_MSG pMsg);
+	bool SetReadTimeout(int milliseconds);
+	bool SetWriteTimeout(int milliseconds);
 
 	static DWORD WINAPI static_SendPeriodcMessages(void* args)
 	{

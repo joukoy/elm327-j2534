@@ -6,6 +6,7 @@
 #include "SafeQueue.hpp"
 #include "elm327_frontend.h"
 #include <regex>
+#include <algorithm>
 
 #define PAD 0xAA
 //#define PAD 0x00
@@ -21,7 +22,8 @@ SafeQueue<canmsg> OutgoingMessages;
 SafeQueue<elm327Response>Responses;
 SafeQueue<PASSTHRU_MSG> ReceivedIsoTpMessages;
 bool Connected = false;
-int timeout = 2000;
+int readTimeout = 2000;
+int writeTimeout = 1000;
 int CurrentProtocol;
 std::string currentHeader = "unset";
 HANDLE bgTask;
@@ -241,6 +243,7 @@ int elm327Comm::elm327RemoveFilters(uint8_t bus)
 
 bool elm327Comm::elm327SendMsg(canmsg Msg, int timeout)
 {
+    SetWriteTimeout(timeout);
     PASSTHRU_MSG message;
     UintToArray(Msg.MsgId, message.Data);
     memcpy(message.Data + 4, Msg.data, 8);
@@ -302,6 +305,32 @@ inline void rtrim(std::string& s) {
 inline void trim(std::string& s) {
     rtrim(s);
     ltrim(s);
+}
+
+
+/// <summary>
+/// Set the timeout to the device. If this is set too low, the device
+/// will return 'No Data'. ELM327 is limited to 1020 milliseconds maximum.
+/// </summary>
+bool elm327Comm::SetReadTimeout(int milliseconds)
+{
+    if (readTimeout == milliseconds)
+    {
+        return true;
+    }
+    int parameter = (std::min)((std::max)(1, (milliseconds / 4)), 255);
+    std::string value = n2hexstr(parameter,2);
+    return SendAndVerify("AT ST " + value, "OK");
+}
+
+/// <summary>
+/// Set the timeout to the device. If this is set too low, the device
+/// will return 'No Data'. ELM327 is limited to 1020 milliseconds maximum.
+/// </summary>
+bool elm327Comm::SetWriteTimeout(int milliseconds)
+{
+    writeTimeout = milliseconds;
+    return true;
 }
 
 /// <summary>
@@ -383,7 +412,7 @@ SerialString elm327Comm::SendRequest(std::string request, bool getresponse)
     Serial.Send(tmp.size() , (unsigned char*)tmp.c_str());
     if (getresponse)
     {
-        return ReadELMLine(true, timeout);
+        return ReadELMLine(true, writeTimeout);
     }
     else
     {
@@ -416,7 +445,7 @@ int elm327Comm::ConnectProtocol(int Protocol, int Bauds)
     CurrentProtocol = Protocol;
 
     OutputDebugStringA(SendRequest("AT E0", true).Data.c_str()); // disable echo
-    OutputDebugStringA(SendRequest("AT S0", true).Data.c_str()); // disable echo
+    OutputDebugStringA(SendRequest("AT S0", true).Data.c_str()); // no spaces on responses
 
 
     if (Protocol == ISO15765)
@@ -447,7 +476,7 @@ int elm327Comm::ConnectProtocol(int Protocol, int Bauds)
             !SendAndVerify("AT DP", "SAE J1850 VPW") ||    // Get Protocol (Verify VPW)
             !SendAndVerify("AT AR", "OK") ||               // Turn Auto Receive on (default should be on anyway)
             !SendAndVerify("AT AT0", "OK") ||              // Disable adaptive timeouts
-            !SendAndVerify("AT H1", "OK") ||               // Send headers
+            !SendAndVerify("AT H1", "OK") ||              // Send headers
             !SendAndVerify("AT ST 20", "OK")               // Set timeout (will be adjusted later, too)                 
             )
         {
@@ -547,6 +576,8 @@ bool elm327Comm::ProcessResponse(SerialString rawResponse, std::string context, 
     // We sent successfully, but the PCM didn't reply immediately.
     if (rawResponse.Data == "NO DATA")
     {
+        std::string tmp = "00\r";
+        Serial.Send(tmp.size(), (unsigned char*)tmp.c_str());
         return true;
     }
     
@@ -760,7 +791,7 @@ bool elm327Comm::SendPassthruMessage(PASSTHRU_MSG *message, int responses)
     if (header != currentHeader)
     {
         SerialString setHeaderResponse = SendRequest("AT SH " + header, getResponse);
-        OutputDebugStringA((std::string( "Set header response (1): ") + setHeaderResponse.Data + std::string( ", time: ") + std::to_string(current_time_ms())).c_str());
+        OutputDebugStringA((std::string( "Set header response (1): ") + setHeaderResponse.Data + std::string( ", time: ") + std::to_string(current_time_ms())+"\n").c_str());
 
         for (int retry = 0; retry < 5; retry++)
         {
@@ -772,7 +803,7 @@ bool elm327Comm::SendPassthruMessage(PASSTHRU_MSG *message, int responses)
             {
                 // Does it help to retry once?
                 setHeaderResponse = SendRequest("AT SH " + header, true);
-                OutputDebugStringA((std::string("Set header response (") + std::to_string(retry + 2) + std::string("): ") + setHeaderResponse.Data + std::string(", time: ") + std::to_string(current_time_ms())).c_str());
+                OutputDebugStringA((std::string("Set header response (") + std::to_string(retry + 2) + std::string("): ") + setHeaderResponse.Data + std::string(", time: ") + std::to_string(current_time_ms())+"\n").c_str());
             }
         }
         if (!ProcessResponse(setHeaderResponse, "set-header command", !getResponse))
@@ -802,7 +833,7 @@ bool elm327Comm::SendPassthruMessage(PASSTHRU_MSG *message, int responses)
     else
     {
         payload = std::regex_replace(payload, std::regex(" "), "");
-        OutputDebugStringA((std::string("TX: ") + payload + std::string(", time: ") + std::to_string(current_time_ms())).c_str());
+        OutputDebugStringA((std::string("TX: ") + payload + std::string(", time: ") + std::to_string(current_time_ms())+"\n").c_str());
         SerialString sendMessageResponse = SendRequest(payload + " ", getResponse);
         if (!ProcessResponse(sendMessageResponse, "message content", !getResponse))
         {
@@ -818,6 +849,8 @@ bool elm327Comm::SendPassthruMessage(PASSTHRU_MSG *message, int responses)
 /// <returns></returns>
 void elm327Comm::Receive(int NumMessages, int timeout)
 {
+    //SetReadTimeout(timeout);
+
     for (int m = 0; m < NumMessages; m++)
     {
         if (timeout > 0 || Serial.BytesAvailable() > 3)
